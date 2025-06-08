@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Edit, Trash2, UserCheck, Download, Filter, Eye, X } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, UserCheck, Download, Filter, Eye, X, UserPlus } from 'lucide-react';
 
 // Mock data for electoral roll
 const mockVoters = [
@@ -16,7 +16,11 @@ const mockVoters = [
     email: 'juan.perez@universidad.edu',
     phone: '+591 70123456',
     gender: 'Masculino',
-    birthDate: '1995-03-15'
+    birthDate: '1995-03-15',
+    // Student specific fields
+    matricula: '2020-0124',
+    fecha_ingreso: '2020-02-15',
+    semestre_actual: 8
   },
   { 
     id: 2, 
@@ -30,7 +34,11 @@ const mockVoters = [
     email: 'maria.rodriguez@universidad.edu',
     phone: '+591 71234567',
     gender: 'Femenino',
-    birthDate: '1997-07-22'
+    birthDate: '1997-07-22',
+    // Student specific fields
+    matricula: '2019-0453',
+    fecha_ingreso: '2019-02-10',
+    semestre_actual: 10
   },
   { 
     id: 3, 
@@ -44,7 +52,11 @@ const mockVoters = [
     email: 'lucia.fernandez@universidad.edu',
     phone: '+591 72345678',
     gender: 'Femenino',
-    birthDate: '1999-11-10'
+    birthDate: '1999-11-10',
+    // Student specific fields
+    matricula: '2021-0078',
+    fecha_ingreso: '2021-02-20',
+    semestre_actual: 6
   },
   { 
     id: 4, 
@@ -58,7 +70,11 @@ const mockVoters = [
     email: 'jorge.perez@universidad.edu',
     phone: '+591 73456789',
     gender: 'Masculino',
-    birthDate: '1975-04-18'
+    birthDate: '1975-04-18',
+    // Teacher specific fields
+    categoria_docente: 'Titular',
+    grado_academico: 'PhD',
+    fecha_ingreso: '2005-03-01'
   },
   { 
     id: 5, 
@@ -72,7 +88,11 @@ const mockVoters = [
     email: 'marta.gonzalez@universidad.edu',
     phone: '+591 74567890',
     gender: 'Femenino',
-    birthDate: '1996-09-05'
+    birthDate: '1996-09-05',
+    // Student specific fields
+    matricula: '2018-0214',
+    fecha_ingreso: '2018-02-05',
+    semestre_actual: 12
   },
 ];
 
@@ -231,6 +251,13 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
             </p>
           </div>
           <div className="flex gap-3 mt-4 md:mt-0">
+            <button 
+              className="btn btn-secondary"
+              onClick={() => navigate('/voter-registration')}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Registrar Persona
+            </button>
             <button 
               className="btn btn-primary"
               onClick={() => navigate('/voter-registration')}
@@ -577,7 +604,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
         {/* Edit Modal */}
         {showEditModal && editingVoter && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">Editar Votante</h2>
                 <button
@@ -693,6 +720,100 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                     <option value="Inhabilitado">Inhabilitado</option>
                   </select>
                 </div>
+
+                {/* Student specific fields */}
+                {editingVoter.type === 'Estudiante' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Matrícula
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={editingVoter.matricula || ''}
+                        onChange={(e) => setEditingVoter({...editingVoter, matricula: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha de Ingreso
+                      </label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={editingVoter.fecha_ingreso || ''}
+                        onChange={(e) => setEditingVoter({...editingVoter, fecha_ingreso: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Semestre Actual
+                      </label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={editingVoter.semestre_actual || ''}
+                        onChange={(e) => setEditingVoter({...editingVoter, semestre_actual: parseInt(e.target.value)})}
+                        min="1"
+                        max="20"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Teacher specific fields */}
+                {editingVoter.type === 'Docente' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Categoría Docente
+                      </label>
+                      <select
+                        className="form-input"
+                        value={editingVoter.categoria_docente || ''}
+                        onChange={(e) => setEditingVoter({...editingVoter, categoria_docente: e.target.value})}
+                      >
+                        <option value="">Seleccionar categoría</option>
+                        <option value="Titular">Titular</option>
+                        <option value="Asociado">Asociado</option>
+                        <option value="Auxiliar">Auxiliar</option>
+                        <option value="Invitado">Invitado</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Grado Académico
+                      </label>
+                      <select
+                        className="form-input"
+                        value={editingVoter.grado_academico || ''}
+                        onChange={(e) => setEditingVoter({...editingVoter, grado_academico: e.target.value})}
+                      >
+                        <option value="">Seleccionar grado</option>
+                        <option value="Licenciatura">Licenciatura</option>
+                        <option value="Maestría">Maestría</option>
+                        <option value="PhD">PhD</option>
+                        <option value="Doctorado">Doctorado</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha de Ingreso
+                      </label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={editingVoter.fecha_ingreso || ''}
+                        onChange={(e) => setEditingVoter({...editingVoter, fecha_ingreso: e.target.value})}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
               
               <div className="flex justify-end gap-3 pt-6">

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { 
-  Search, Plus, Edit, Trash2, Eye, Calendar, MapPin, Users, 
+import {
+  Search, Plus, Edit, Trash2, Eye, Calendar, MapPin, Users,
   Settings, CheckCircle, Clock, XCircle, Filter, Download,
-  UserCheck, Building
+  UserCheck, Building, X // 👈 este es el que falta
 } from 'lucide-react';
 
 // Types
@@ -62,6 +62,10 @@ const ElectionManagementPage: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingElection, setEditingElection] = useState<Election | null>(null);
+  const [showVoterLocationModal, setShowVoterLocationModal] = useState(false);
+  const [voterCI, setVoterCI] = useState('');
+  const [voterLocation, setVoterLocation] = useState<any>(null);
+  const [searchingLocation, setSearchingLocation] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Election>>({
@@ -141,6 +145,47 @@ const ElectionManagementPage: React.FC = () => {
     }
   };
 
+  // Handle voter location search
+  const handleSearchVoterLocation = () => {
+    if (!voterCI.trim()) return;
+    
+    setSearchingLocation(true);
+    setVoterLocation(null);
+    
+    // Simulate API call
+    setTimeout(() => {
+      // Mock data
+      const mockVoterLocations = [
+        {
+          ci: '12345678',
+          name: 'Juan Carlos Pérez González',
+          faculty: 'Ingeniería',
+          career: 'Sistemas',
+          precinct: 'Edificio Central - Aula 101',
+          device: 'Tablet TB-2021-001',
+          schedule: '08:00 - 18:00'
+        },
+        {
+          ci: '87654321',
+          name: 'María Elena Rodríguez Mamani',
+          faculty: 'Ciencias Económicas',
+          career: 'Administración',
+          precinct: 'Facultad de Ingeniería - Aula 205',
+          device: 'Laptop LP-2021-002',
+          schedule: '08:00 - 18:00'
+        }
+      ];
+      
+      const found = mockVoterLocations.find(voter => voter.ci === voterCI);
+      if (found) {
+        setVoterLocation(found);
+      } else {
+        setVoterLocation({ notFound: true });
+      }
+      setSearchingLocation(false);
+    }, 1500);
+  };
+
   // Get status color
   const getStatusColor = (estado: string) => {
     switch (estado) {
@@ -175,6 +220,13 @@ const ElectionManagementPage: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-3 mt-4 md:mt-0">
+            <button 
+              className="btn btn-secondary"
+              onClick={() => setShowVoterLocationModal(true)}
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Buscar Lugar de Voto
+            </button>
             <button 
               className="btn btn-primary"
               onClick={() => setShowCreateModal(true)}
@@ -368,6 +420,136 @@ const ElectionManagementPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Voter Location Modal */}
+        {showVoterLocationModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold">Buscar Lugar de Votación</h2>
+                <button
+                  onClick={() => {
+                    setShowVoterLocationModal(false);
+                    setVoterCI('');
+                    setVoterLocation(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cédula de Identidad del Votante
+                  </label>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      className="form-input flex-1"
+                      placeholder="Ingrese CI del votante"
+                      value={voterCI}
+                      onChange={(e) => setVoterCI(e.target.value)}
+                    />
+                    <button
+                      onClick={handleSearchVoterLocation}
+                      className="btn btn-primary"
+                      disabled={!voterCI.trim() || searchingLocation}
+                    >
+                      {searchingLocation ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Buscando...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="h-4 w-4 mr-2" />
+                          Buscar
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Results */}
+                {voterLocation && (
+                  <div className="mt-6">
+                    {voterLocation.notFound ? (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="flex items-center">
+                          <XCircle className="h-5 w-5 text-red-600 mr-2" />
+                          <span className="text-red-800 font-medium">Votante no encontrado</span>
+                        </div>
+                        <p className="text-red-700 mt-2">
+                          No se encontró ningún votante con CI: <strong>{voterCI}</strong>
+                        </p>
+                        <p className="text-red-600 text-sm mt-1">
+                          Verifique que el CI esté correcto y que la persona esté registrada en el padrón electoral.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-center mb-3">
+                          <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                          <span className="text-green-800 font-medium">Información de Votación</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-600">Nombre:</p>
+                            <p className="font-medium">{voterLocation.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">CI:</p>
+                            <p className="font-medium">{voterLocation.ci}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Facultad:</p>
+                            <p className="font-medium">{voterLocation.faculty}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Carrera:</p>
+                            <p className="font-medium">{voterLocation.career}</p>
+                          </div>
+                          <div className="md:col-span-2">
+                            <p className="text-sm text-gray-600">Lugar de Votación:</p>
+                            <p className="font-medium flex items-center">
+                              <MapPin className="h-4 w-4 mr-1 text-gray-400" />
+                              {voterLocation.precinct}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Dispositivo Asignado:</p>
+                            <p className="font-medium">{voterLocation.device}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Horario de Votación:</p>
+                            <p className="font-medium">{voterLocation.schedule}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end gap-3 pt-6">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => {
+                    setShowVoterLocationModal(false);
+                    setVoterCI('');
+                    setVoterLocation(null);
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Create/Edit Modal */}
         {showCreateModal && (

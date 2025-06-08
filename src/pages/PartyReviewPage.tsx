@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Eye, Check, X, User, Users, Award, FileText, 
-  Calendar, Palette, Download, MessageSquare
+  Calendar, Palette, Download, MessageSquare, Edit
 } from 'lucide-react';
 
 // Types
@@ -101,11 +101,40 @@ const PartyReviewPage: React.FC = () => {
   const [parties, setParties] = useState<PartyForReview[]>(mockPartiesForReview);
   const [selectedParty, setSelectedParty] = useState<PartyForReview | null>(null);
   const [reviewComment, setReviewComment] = useState('');
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingParty, setEditingParty] = useState<PartyForReview | null>(null);
 
   // Handle party selection
   const handleSelectParty = (party: PartyForReview) => {
     setSelectedParty(party);
     setReviewComment('');
+  };
+
+  // Handle edit party
+  const handleEditParty = (party: PartyForReview) => {
+    if (party.estado !== 'Pendiente') {
+      return;
+    }
+    setEditingParty({ ...party });
+    setShowEditModal(true);
+  };
+
+  // Handle save edit
+  const handleSaveEdit = () => {
+    if (!editingParty) return;
+    
+    setParties(parties.map(party => 
+      party.id === editingParty.id ? editingParty : party
+    ));
+    
+    if (selectedParty?.id === editingParty.id) {
+      setSelectedParty(editingParty);
+    }
+    
+    setShowEditModal(false);
+    setEditingParty(null);
   };
 
   // Handle approval
@@ -118,14 +147,13 @@ const PartyReviewPage: React.FC = () => {
         : party
     ));
     
-    alert('Partido aprobado exitosamente');
+    setShowApproveModal(false);
     setSelectedParty(null);
   };
 
   // Handle rejection
   const handleReject = () => {
     if (!selectedParty || !reviewComment.trim()) {
-      alert('Por favor ingrese un comentario explicando el motivo del rechazo');
       return;
     }
     
@@ -135,7 +163,7 @@ const PartyReviewPage: React.FC = () => {
         : party
     ));
     
-    alert('Partido rechazado. Se ha enviado la notificación con los comentarios.');
+    setShowRejectModal(false);
     setSelectedParty(null);
     setReviewComment('');
   };
@@ -194,6 +222,18 @@ const PartyReviewPage: React.FC = () => {
                           <h3 className="font-medium text-sm">{party.sigla}</h3>
                           <p className="text-xs text-gray-500">{party.nombre}</p>
                         </div>
+                        {party.estado === 'Pendiente' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditParty(party);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 p-1"
+                            title="Editar"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                       <div className="mt-2 text-xs text-gray-500">
                         Registrado: {new Date(party.fecha_registro).toLocaleDateString()}
@@ -349,14 +389,14 @@ const PartyReviewPage: React.FC = () => {
                     
                     <div className="flex justify-end space-x-4">
                       <button
-                        onClick={handleReject}
+                        onClick={() => setShowRejectModal(true)}
                         className="btn bg-red-600 text-white hover:bg-red-700"
                       >
                         <X className="h-4 w-4 mr-2" />
                         Rechazar
                       </button>
                       <button
-                        onClick={handleApprove}
+                        onClick={() => setShowApproveModal(true)}
                         className="btn bg-green-600 text-white hover:bg-green-700"
                       >
                         <Check className="h-4 w-4 mr-2" />
@@ -379,6 +419,232 @@ const PartyReviewPage: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Approve Modal */}
+        {showApproveModal && selectedParty && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-green-600">Aprobar Partido</h2>
+                <button
+                  onClick={() => setShowApproveModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700 mb-4">
+                  ¿Está seguro de que desea aprobar este partido político?
+                </p>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <div 
+                      className="w-4 h-4 rounded-full mr-2"
+                      style={{ backgroundColor: selectedParty.color }}
+                    ></div>
+                    <p className="font-medium">{selectedParty.nombre}</p>
+                  </div>
+                  <p className="text-sm text-gray-600">Sigla: {selectedParty.sigla}</p>
+                  <p className="text-sm text-gray-600">Candidatos: {selectedParty.candidates.length}</p>
+                </div>
+                {reviewComment && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium text-gray-700">Comentarios:</p>
+                    <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded mt-1">{reviewComment}</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowApproveModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleApprove}
+                  className="btn bg-green-600 text-white hover:bg-green-700"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Aprobar Partido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reject Modal */}
+        {showRejectModal && selectedParty && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-red-600">Rechazar Partido</h2>
+                <button
+                  onClick={() => setShowRejectModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700 mb-4">
+                  ¿Está seguro de que desea rechazar este partido político?
+                </p>
+                <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                  <div className="flex items-center mb-2">
+                    <div 
+                      className="w-4 h-4 rounded-full mr-2"
+                      style={{ backgroundColor: selectedParty.color }}
+                    ></div>
+                    <p className="font-medium">{selectedParty.nombre}</p>
+                  </div>
+                  <p className="text-sm text-gray-600">Sigla: {selectedParty.sigla}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Motivo del rechazo *
+                  </label>
+                  <textarea
+                    className="form-input"
+                    rows={3}
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Explique el motivo del rechazo..."
+                    required
+                  />
+                </div>
+                
+                <p className="text-red-600 text-sm mt-2">
+                  Esta acción enviará una notificación al representante del partido.
+                </p>
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowRejectModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleReject}
+                  className="btn bg-red-600 text-white hover:bg-red-700"
+                  disabled={!reviewComment.trim()}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Rechazar Partido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Modal */}
+        {showEditModal && editingParty && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold">Editar Partido</h2>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre *
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editingParty.nombre}
+                      onChange={(e) => setEditingParty({...editingParty, nombre: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Sigla *
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editingParty.sigla}
+                      onChange={(e) => setEditingParty({...editingParty, sigla: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Fecha de Fundación *
+                    </label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={editingParty.fecha_fundacion}
+                      onChange={(e) => setEditingParty({...editingParty, fecha_fundacion: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Color
+                    </label>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="color"
+                        className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
+                        value={editingParty.color}
+                        onChange={(e) => setEditingParty({...editingParty, color: e.target.value})}
+                      />
+                      <span className="text-sm text-gray-600">{editingParty.color}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Descripción *
+                  </label>
+                  <textarea
+                    className="form-input"
+                    rows={3}
+                    value={editingParty.descripcion}
+                    onChange={(e) => setEditingParty({...editingParty, descripcion: e.target.value})}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 pt-6">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowEditModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleSaveEdit}
+                  className="btn btn-primary"
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

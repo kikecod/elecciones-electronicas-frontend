@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, ArrowLeft, Camera, User, Save, UserPlus, 
@@ -17,6 +17,13 @@ interface Person {
   direccion: string;
   genero: 'Masculino' | 'Femenino' | 'Otro';
   tipo: 'Estudiante' | 'Docente';
+  // Student specific fields
+  matricula?: string;
+  fecha_ingreso?: string;
+  semestre_actual?: number;
+  // Teacher specific fields
+  categoria_docente?: string;
+  grado_academico?: string;
 }
 
 interface VoterData {
@@ -52,12 +59,57 @@ const VoterRegistrationPage: React.FC = () => {
     telefono: '',
     direccion: '',
     genero: 'Masculino',
-    tipo: 'Estudiante'
+    tipo: 'Estudiante',
+    // Student fields
+    matricula: '',
+    fecha_ingreso: '',
+    semestre_actual: 1,
+    // Teacher fields
+    categoria_docente: '',
+    grado_academico: ''
   });
+  
 
   // Error modal state
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  useEffect(() => {
+  const enableCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: 'user',
+        },
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play();
+        };
+      }
+    } catch (error) {
+      console.error('Error al acceder a la cámara:', error);
+      handleShowErrorModal('No se pudo acceder a la cámara.');
+    }
+  };
+
+  if (cameraActive) {
+    enableCamera();
+  }
+
+  return () => {
+    // Limpieza si se apaga la cámara
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  };
+}, [cameraActive]);
+  
 
   const handleShowErrorModal = (message: string) => {
     setErrorMessage(message);
@@ -86,7 +138,10 @@ const VoterRegistrationPage: React.FC = () => {
           telefono: '+591 70123456',
           direccion: 'Av. América #123, La Paz',
           genero: 'Masculino',
-          tipo: 'Estudiante'
+          tipo: 'Estudiante',
+          matricula: '2020-0124',
+          fecha_ingreso: '2020-02-15',
+          semestre_actual: 8
         },
         {
           ci: '87654321',
@@ -98,7 +153,10 @@ const VoterRegistrationPage: React.FC = () => {
           telefono: '+591 71234567',
           direccion: 'Calle Murillo #456, La Paz',
           genero: 'Femenino',
-          tipo: 'Docente'
+          tipo: 'Docente',
+          categoria_docente: 'Titular',
+          grado_academico: 'PhD',
+          fecha_ingreso: '2005-03-01'
         }
       ];
       
@@ -117,27 +175,33 @@ const VoterRegistrationPage: React.FC = () => {
   };
 
   // Start camera for face capture
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user'
-        } 
-      });
+  // const startCamera = async () => {
+  //   try {
+  //     const stream = await navigator.mediaDevices.getUserMedia({ 
+  //       video: { 
+  //         width: { ideal: 640 },
+  //         height: { ideal: 480 },
+  //         facingMode: 'user'
+  //       } 
+  //     });
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play();
-        };
-        setCameraActive(true);
-      }
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      handleShowErrorModal('No se pudo acceder a la cámara. Verifique los permisos.');
-    }
+  //     if (videoRef.current) {
+  //       videoRef.current.srcObject = stream;
+  //       videoRef.current.onloadedmetadata = () => {
+  //         videoRef.current?.play();
+  //       };
+  //       setCameraActive(true);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error accessing camera:', error);
+  //     handleShowErrorModal('No se pudo acceder a la cámara. Verifique los permisos.');
+  //   }
+  //   console.log('VideoRef:', videoRef.current);
+  //   console.log('Stream:', stream);
+    
+  // };
+  const startCamera = () => {
+    setCameraActive(true);
   };
 
   // Stop camera
@@ -200,7 +264,7 @@ const VoterRegistrationPage: React.FC = () => {
     }, 2000);
   };
 
-  // Handle new person registration
+  //Handle new person registration
   const handleRegisterNewPerson = () => {
     // Validate required fields
     const required = ['nombres', 'apellido_paterno', 'apellido_materno', 'fecha_nacimiento', 'email'];
@@ -363,6 +427,34 @@ const VoterRegistrationPage: React.FC = () => {
                       <p className="text-sm text-gray-600">Teléfono:</p>
                       <p className="font-medium">{foundPerson.telefono}</p>
                     </div>
+                    
+                    {/* Student specific info */}
+                    {foundPerson.tipo === 'Estudiante' && (
+                      <>
+                        <div>
+                          <p className="text-sm text-gray-600">Matrícula:</p>
+                          <p className="font-medium">{foundPerson.matricula}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Semestre Actual:</p>
+                          <p className="font-medium">{foundPerson.semestre_actual}</p>
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* Teacher specific info */}
+                    {foundPerson.tipo === 'Docente' && (
+                      <>
+                        <div>
+                          <p className="text-sm text-gray-600">Categoría:</p>
+                          <p className="font-medium">{foundPerson.categoria_docente}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Grado Académico:</p>
+                          <p className="font-medium">{foundPerson.grado_academico}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                   
                   <button
@@ -498,6 +590,101 @@ const VoterRegistrationPage: React.FC = () => {
                     </select>
                   </div>
                   
+                  {/* Student specific fields */}
+                  {newPersonData.tipo === 'Estudiante' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Matrícula *
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={newPersonData.matricula}
+                          onChange={(e) => setNewPersonData({...newPersonData, matricula: e.target.value})}
+                          placeholder="Ej: 2024-0001"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Fecha de Ingreso *
+                        </label>
+                        <input
+                          type="date"
+                          className="form-input"
+                          value={newPersonData.fecha_ingreso}
+                          onChange={(e) => setNewPersonData({...newPersonData, fecha_ingreso: e.target.value})}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Semestre Actual *
+                        </label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          value={newPersonData.semestre_actual}
+                          onChange={(e) => setNewPersonData({...newPersonData, semestre_actual: parseInt(e.target.value)})}
+                          min="1"
+                          max="20"
+                        />
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Teacher specific fields */}
+                  {newPersonData.tipo === 'Docente' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Categoría Docente *
+                        </label>
+                        <select
+                          className="form-input"
+                          value={newPersonData.categoria_docente}
+                          onChange={(e) => setNewPersonData({...newPersonData, categoria_docente: e.target.value})}
+                        >
+                          <option value="">Seleccionar categoría</option>
+                          <option value="Titular">Titular</option>
+                          <option value="Asociado">Asociado</option>
+                          <option value="Auxiliar">Auxiliar</option>
+                          <option value="Invitado">Invitado</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Grado Académico *
+                        </label>
+                        <select
+                          className="form-input"
+                          value={newPersonData.grado_academico}
+                          onChange={(e) => setNewPersonData({...newPersonData, grado_academico: e.target.value})}
+                        >
+                          <option value="">Seleccionar grado</option>
+                          <option value="Licenciatura">Licenciatura</option>
+                          <option value="Maestría">Maestría</option>
+                          <option value="PhD">PhD</option>
+                          <option value="Doctorado">Doctorado</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Fecha de Ingreso *
+                        </label>
+                        <input
+                          type="date"
+                          className="form-input"
+                          value={newPersonData.fecha_ingreso}
+                          onChange={(e) => setNewPersonData({...newPersonData, fecha_ingreso: e.target.value})}
+                        />
+                      </div>
+                    </>
+                  )}
+                  
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Dirección
@@ -567,6 +754,7 @@ const VoterRegistrationPage: React.FC = () => {
                       playsInline
                       muted
                       className="w-64 h-48 bg-black rounded-lg border-2 border-primary"
+                      style={{ transform: 'scaleX(-1)' }}
                     />
                     <div className="absolute inset-0 border-2 border-dashed border-white rounded-lg m-4 opacity-50"></div>
                   </div>
@@ -624,6 +812,34 @@ const VoterRegistrationPage: React.FC = () => {
                     <span className="text-sm text-gray-600">Email:</span>
                     <span className="ml-2 font-medium">{foundPerson.email}</span>
                   </div>
+                  
+                  {/* Student specific verification */}
+                  {foundPerson.tipo === 'Estudiante' && (
+                    <>
+                      <div>
+                        <span className="text-sm text-gray-600">Matrícula:</span>
+                        <span className="ml-2 font-medium">{foundPerson.matricula}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600">Semestre:</span>
+                        <span className="ml-2 font-medium">{foundPerson.semestre_actual}</span>
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Teacher specific verification */}
+                  {foundPerson.tipo === 'Docente' && (
+                    <>
+                      <div>
+                        <span className="text-sm text-gray-600">Categoría:</span>
+                        <span className="ml-2 font-medium">{foundPerson.categoria_docente}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600">Grado:</span>
+                        <span className="ml-2 font-medium">{foundPerson.grado_academico}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               
@@ -633,6 +849,7 @@ const VoterRegistrationPage: React.FC = () => {
                   src={capturedImage}
                   alt="Rostro capturado"
                   className="w-48 h-36 object-cover rounded-lg border border-gray-300"
+                  style={{ transform: 'scaleX(-1)' }}
                 />
               </div>
             </div>

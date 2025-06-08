@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Upload, Search, Plus, Trash2, User, FileText, 
-  Palette, Image, Users, Award, Target, Save
+  Palette, Image, Users, Award, Target, Save, X, CheckCircle
 } from 'lucide-react';
 
 // Types
@@ -48,6 +48,14 @@ const PartyRegistrationFormPage: React.FC = () => {
   const [searchingRepresentative, setSearchingRepresentative] = useState(false);
   const [searchingCandidate, setSearchingCandidate] = useState('');
   const [candidateSearch, setCandidateSearch] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleShowErrorModal = (message: string) => {
+    setErrorMessage(message);
+    setShowErrorModal(true);
+  };
 
   // Handle logo upload
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,7 +86,7 @@ const PartyRegistrationFormPage: React.FC = () => {
       if (found) {
         setFormData({ ...formData, representante_name: found.name });
       } else {
-        alert('Representante no encontrado');
+        handleShowErrorModal('Representante no encontrado');
       }
       setSearchingRepresentative(false);
     }, 1000);
@@ -102,7 +110,7 @@ const PartyRegistrationFormPage: React.FC = () => {
   const addCandidate = () => {
     const candidateName = handleSearchCandidate();
     if (!candidateName) {
-      alert('Candidato no encontrado');
+      handleShowErrorModal('Candidato no encontrado');
       return;
     }
 
@@ -153,26 +161,25 @@ const PartyRegistrationFormPage: React.FC = () => {
     
     // Validation
     if (!formData.nombre || !formData.sigla || !formData.representante_id) {
-      alert('Por favor complete todos los campos obligatorios');
+      handleShowErrorModal('Por favor complete todos los campos obligatorios');
       return;
     }
 
     if (formData.candidates.length === 0) {
-      alert('Debe agregar al menos un candidato');
+      handleShowErrorModal('Debe agregar al menos un candidato');
       return;
     }
 
     // Check if at least one candidate is "cabeza"
     const hasCabeza = formData.candidates.some(c => c.es_cabeza);
     if (!hasCabeza) {
-      alert('Debe designar al menos un candidato como cabeza de lista');
+      handleShowErrorModal('Debe designar al menos un candidato como cabeza de lista');
       return;
     }
 
     // Simulate form submission
     console.log('Submitting party registration:', formData);
-    alert('Partido registrado exitosamente. Pasando a revisión...');
-    navigate('/party-registration');
+    setShowSuccessModal(true);
   };
 
   return (
@@ -507,6 +514,78 @@ const PartyRegistrationFormPage: React.FC = () => {
             </button>
           </div>
         </form>
+
+        {/* Success Modal */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-green-600">¡Registro Exitoso!</h2>
+                <button
+                  onClick={() => setShowSuccessModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="mb-6 text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                  </div>
+                </div>
+                <p className="text-gray-700">
+                  Partido registrado exitosamente. Pasando a revisión...
+                </p>
+              </div>
+              
+              <div className="flex justify-center">
+                <button 
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    navigate('/party-registration');
+                  }}
+                  className="btn btn-primary"
+                >
+                  Continuar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Modal */}
+        {showErrorModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-red-600">Error</h2>
+                <button
+                  onClick={() => setShowErrorModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700">
+                  {errorMessage}
+                </p>
+              </div>
+              
+              <div className="flex justify-center">
+                <button 
+                  onClick={() => setShowErrorModal(false)}
+                  className="btn btn-primary"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
