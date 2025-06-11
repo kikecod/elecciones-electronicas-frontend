@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8082/api';
 
 // API Client
 class ApiClient {
@@ -107,7 +107,7 @@ export const API_ENDPOINTS = {
   PARTY_REJECT: (id: number) => `/parties/${id}/reject`,
   
   // Academic Administration
-  FACULTIES: '/faculties',
+  FACULTIES: '/facultades',
   FACULTY_BY_ID: (id: number) => `/faculties/${id}`,
   CAREERS: '/careers',
   CAREER_BY_ID: (id: number) => `/careers/${id}`,

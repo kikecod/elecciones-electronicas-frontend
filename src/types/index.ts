@@ -70,19 +70,22 @@ export interface Candidate extends BaseEntity {
 
 // Academic Types
 export interface Faculty extends BaseEntity {
-  name: string;
-  code: string;
-  creation_date: string;
-  dean_ci: string;
-  dean_name: string;
+  nombre: string;
+  codigo: string;
+  fechaCreacion: string;
+  idDecano: number;
+  estado: boolean;
+  nombreDecano: string;
+  ciDecano: string;
+  carreras?: Career[] | 0;
 }
 
 export interface Career extends BaseEntity {
-  faculty_id: number;
-  name: string;
-  code: string;
-  duration_semesters: number;
-  students_count?: number;
+  idFacultad: number;
+  nombre: string;
+  codigo: string;
+  duracionSemestres: number;
+  estado: boolean;
 }
 
 // Precinct Types
