@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Building, GraduationCap, BookOpen, Search, X, Save } from 'lucide-react';
 import { Faculty, Career } from '../types';
-
-
+import * as academicService from '../services/AcademicAdminStore';
 
 const AcademicAdminPage: React.FC = () => {
   const [faculties, setFaculties] = useState<Faculty[]>([]);
@@ -15,18 +14,12 @@ const AcademicAdminPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'faculty' | 'career', item: Faculty | Career } | null>(null);
 
   useEffect(() => {
-    // Cambia la URL por la de tu backend real
-    fetch('http://localhost:8082/api/facultades')
-      .then(res => res.json())
-      .then(data => {
-        // Si tu backend devuelve un array directo:
-        setFaculties(data);
-        // Si devuelve { data: [...] }, usa: setFaculties(data.data);
-      })
+    academicService.getFaculties()
+      .then(setFaculties)
       .catch(() => setFaculties([]));
   }, []);
-
-  // Faculty form data
+  // Faculty form
+  //  data
   const [facultyFormData, setFacultyFormData] = useState({
     name: '',
     code: '',
@@ -56,95 +49,71 @@ const AcademicAdminPage: React.FC = () => {
 
   // Handle search dean
   const handleSearchDean = async () => {
-  if (!facultyFormData.dean_ci) return;
-
-  setSearchingDean(true);
-
-  try {
-    // Cambia la URL por la de tu backend real
-    const res = await fetch(`http://localhost:8082/api/personas/buscar-por-ci/${facultyFormData.dean_ci}`);
-    if (!res.ok) throw new Error('No encontrado');
-    const person = await res.json();
-
-    setFacultyFormData({
-      ...facultyFormData,
-      dean_name: `${person.nombre} ${person.apellidoPaterno} ${person.apellidoMaterno}`,
-      dean_id: person.idPersona // <-- Aquí guardas el id real del decano
-    });
-  } catch (error) {
-    setFacultyFormData({ ...facultyFormData, dean_name: '', dean_id: 0 });
-    alert('Docente no encontrado');
-  }
-  setSearchingDean(false);
-};
+    if (!facultyFormData.dean_ci) return;
+    setSearchingDean(true);
+    try {
+      const person = await academicService.getPersonByCI(facultyFormData.dean_ci);
+      setFacultyFormData({
+        ...facultyFormData,
+        dean_name: `${person.nombre} ${person.apellidoPaterno} ${person.apellidoMaterno}`,
+        dean_id: person.idPersona
+      });
+    } catch {
+      setFacultyFormData({ ...facultyFormData, dean_name: '', dean_id: 0 });
+      alert('Docente no encontrado');
+    }
+    setSearchingDean(false);
+  };
 
   // Handle faculty form submission
   const handleFacultySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Mapea los datos del formulario a los nombres del backend
     const facultyPayload = {
       nombre: facultyFormData.name,
       codigo: facultyFormData.code,
       fechaCreacion: facultyFormData.creation_date,
-      idDecano: facultyFormData.dean_id, // CI del decano
+      idDecano: facultyFormData.dean_id,
       estado: true
     };
 
-    if (editingFaculty) {
-      // Editar facultad (PUT)
-      await fetch(`http://localhost:8082/api/facultades/${editingFaculty.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(facultyPayload)
-      });
-    } else {
-      // Crear facultad (POST)
-      await fetch('http://localhost:8082/api/facultades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(facultyPayload)
-      });
+    try {
+      if (editingFaculty) {
+        await academicService.updateFaculty(editingFaculty.id, facultyPayload);
+      } else {
+        await academicService.createFaculty(facultyPayload);
+      }
+      const updated = await academicService.getFaculties();
+      setFaculties(updated);
+      resetFacultyForm();
+    } catch (error) {
+      alert('Error al guardar la facultad');
     }
-
-    // Refresca la lista de facultades
-    fetch('http://localhost:8082/api/facultades')
-      .then(res => res.json())
-      .then(data => setFaculties(data));
-
-    resetFacultyForm();
   };
 
   // Handle career form submission
-  const handleCareerSubmit = (e: React.FormEvent) => {
+  const handleCareerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (editingCareer) {
-      // Update existing career
-      setFaculties(faculties.map(faculty => ({
-        ...faculty,
-        careers: faculty.carreras.map(career =>
-          career.id === editingCareer.id
-            ? { ...career, ...careerFormData, studentsCount: career.studentsCount }
-            : career
-        )
-      })));
-    } else {
-      // Create new career
-      const newCareer: Career = {
-        id: Math.max(...faculties.flatMap(f => f.carreras.map(c => c.id))) + 1,
-        ...careerFormData,
-        studentsCount: 0
-      };
+    const careerPayload = {
+      idFacultad: careerFormData.faculty_id,
+      nombre: careerFormData.name,
+      codigo: careerFormData.code,
+      duracionSemestres: careerFormData.duration_semesters,
+      estado: true
+    };
 
-      setFaculties(faculties.map(faculty =>
-        faculty.id === careerFormData.faculty_id
-          ? { ...faculty, careers: [...faculty.careers, newCareer] }
-          : faculty
-      ));
+    try {
+      if (editingCareer) {
+        await academicService.updateCareer(editingCareer.id, careerPayload);
+      } else {
+        await academicService.createCareer(careerPayload);
+      }
+      const updated = await academicService.getFaculties();
+      setFaculties(updated);
+      resetCareerForm();
+    } catch (error) {
+      alert('Error al guardar la carrera');
     }
-
-    resetCareerForm();
   };
 
   // Reset forms
@@ -206,18 +175,19 @@ const AcademicAdminPage: React.FC = () => {
   };
 
   // Confirm delete
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
-
-    if (deleteTarget.type === 'faculty') {
-      setFaculties(faculties.filter(f => f.id !== deleteTarget.item.id));
-    } else {
-      setFaculties(faculties.map(faculty => ({
-        ...faculty,
-        careers: faculty.carreras.filter(c => c.id !== deleteTarget.item.id)
-      })));
+    try {
+      if (deleteTarget.type === 'faculty') {
+        await academicService.deleteFaculty(deleteTarget.item.id);
+      } else if (deleteTarget.type === 'career') {
+        await academicService.deleteCareer(deleteTarget.item.id);
+      }
+      const updated = await academicService.getFaculties();
+      setFaculties(updated);
+    } catch {
+      alert('Error al eliminar');
     }
-
     setShowDeleteModal(false);
     setDeleteTarget(null);
   };
@@ -266,7 +236,9 @@ const AcademicAdminPage: React.FC = () => {
                   <div>
                     <h3 className="text-lg font-semibold">{faculty.nombre}</h3>
                     <p className="text-sm text-gray-500">
-                      Código: {faculty.codigo} | {faculty.carreras.length} Carreras |
+                      Código: {faculty.codigo} | {faculty.carreras.length} Carreras | {
+                        faculty.carreras.reduce((acc, career) => acc + (career.numeroEstudiantes ?? 0), 0)
+                      } Estudiantes
                     </p>
                     <p className="text-xs text-gray-400">
                       Decano: {faculty.nombreDecano} | Creada: {new Date(faculty.fechaCreacion).toLocaleDateString()}
@@ -350,7 +322,7 @@ const AcademicAdminPage: React.FC = () => {
                               {career.duracionSemestres} semestres
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {career.studentsCount}
+                              {career.numeroEstudiantes ?? 0} Estudiantes
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex justify-end gap-2">

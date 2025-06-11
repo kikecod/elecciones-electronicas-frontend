@@ -86,6 +86,7 @@ export interface Career extends BaseEntity {
   codigo: string;
   duracionSemestres: number;
   estado: boolean;
+  numeroEstudiantes?: number;
 }
 
 // Precinct Types
