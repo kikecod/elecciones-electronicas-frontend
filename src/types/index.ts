@@ -77,7 +77,7 @@ export interface Faculty extends BaseEntity {
   estado: boolean;
   nombreDecano: string;
   ciDecano: string;
-  carreras?: Career[] | 0;
+  carreras: Career[];
 }
 
 export interface Career extends BaseEntity {

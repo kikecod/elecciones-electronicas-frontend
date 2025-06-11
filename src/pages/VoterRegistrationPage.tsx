@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search, ArrowLeft, Camera, User, Save, UserPlus, 
+import {
+  Search, ArrowLeft, Camera, User, Save, UserPlus,
   CheckCircle, AlertCircle, Download, QrCode, X
 } from 'lucide-react';
+import * as electoralStore from '../services/ElectoralRollStore';
 
 // Types
 interface Person {
@@ -36,7 +37,7 @@ const VoterRegistrationPage: React.FC = () => {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
+
   const [searchCI, setSearchCI] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [foundPerson, setFoundPerson] = useState<Person | null>(null);
@@ -49,6 +50,7 @@ const VoterRegistrationPage: React.FC = () => {
   const [registrationStep, setRegistrationStep] = useState<'search' | 'capture' | 'verify' | 'success'>('search');
   const [generatedQR, setGeneratedQR] = useState<string | null>(null);
   
+
   // Form data for new person registration
   const [newPersonData, setNewPersonData] = useState<Partial<Person>>({
     nombres: '',
@@ -68,48 +70,48 @@ const VoterRegistrationPage: React.FC = () => {
     categoria_docente: '',
     grado_academico: ''
   });
-  
+
 
   // Error modal state
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   useEffect(() => {
-  const enableCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user',
-        },
-      });
+    const enableCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user',
+          },
+        });
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play();
-        };
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play();
+          };
+        }
+      } catch (error) {
+        console.error('Error al acceder a la cámara:', error);
+        handleShowErrorModal('No se pudo acceder a la cámara.');
       }
-    } catch (error) {
-      console.error('Error al acceder a la cámara:', error);
-      handleShowErrorModal('No se pudo acceder a la cámara.');
-    }
-  };
+    };
 
-  if (cameraActive) {
-    enableCamera();
-  }
-
-  return () => {
-    // Limpieza si se apaga la cámara
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
+    if (cameraActive) {
+      enableCamera();
     }
-  };
-}, [cameraActive]);
-  
+
+    return () => {
+      // Limpieza si se apaga la cámara
+      if (videoRef.current && videoRef.current.srcObject) {
+        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+        tracks.forEach((track) => track.stop());
+        videoRef.current.srcObject = null;
+      }
+    };
+  }, [cameraActive]);
+
 
   const handleShowErrorModal = (message: string) => {
     setErrorMessage(message);
@@ -119,59 +121,42 @@ const VoterRegistrationPage: React.FC = () => {
   // Search person by CI
   const handleSearchPerson = async () => {
     if (!searchCI.trim()) return;
-    
+
     setSearchLoading(true);
     setPersonNotFound(false);
     setFoundPerson(null);
-    
-    // Simulate API call
-    setTimeout(() => {
-      // Mock data - simulate found person
-      const mockPersons: Person[] = [
-        {
-          ci: '12345678',
-          nombres: 'Juan Carlos',
-          apellido_paterno: 'Pérez',
-          apellido_materno: 'González',
-          fecha_nacimiento: '1995-03-15',
-          email: 'juan.perez@universidad.edu',
-          telefono: '+591 70123456',
-          direccion: 'Av. América #123, La Paz',
-          genero: 'Masculino',
-          tipo: 'Estudiante',
-          matricula: '2020-0124',
-          fecha_ingreso: '2020-02-15',
-          semestre_actual: 8
-        },
-        {
-          ci: '87654321',
-          nombres: 'María Elena',
-          apellido_paterno: 'Rodríguez',
-          apellido_materno: 'Mamani',
-          fecha_nacimiento: '1980-07-22',
-          email: 'maria.rodriguez@universidad.edu',
-          telefono: '+591 71234567',
-          direccion: 'Calle Murillo #456, La Paz',
-          genero: 'Femenino',
-          tipo: 'Docente',
-          categoria_docente: 'Titular',
-          grado_academico: 'PhD',
-          fecha_ingreso: '2005-03-01'
-        }
-      ];
-      
-      const found = mockPersons.find(person => person.ci === searchCI);
-      
-      if (found) {
-        setFoundPerson(found);
+
+    try {
+      const person = await electoralStore.getPersonByCI(searchCI);
+      if (person) {
+        setFoundPerson({
+          ci: person.ci,
+          nombres: person.nombre || person.nombres,
+          apellido_paterno: person.apellido_paterno,
+          apellido_materno: person.apellido_materno,
+          fecha_nacimiento: person.fechaNacimiento || person.fecha_nacimiento,
+          email: person.email,
+          telefono: person.telefono,
+          direccion: person.direccion,
+          genero: person.genero,
+          tipo: person.tipo,
+          matricula: person.matricula,
+          fecha_ingreso: person.fechaIngreso || person.fecha_ingreso,
+          semestre_actual: person.semestreActual || person.semestre_actual,
+          categoria_docente: person.categoriaDocente || person.categoria_docente,
+          grado_academico: person.gradoAcademico || person.grado_academico,
+        });
         setRegistrationStep('capture');
       } else {
         setPersonNotFound(true);
         setShowNotFoundModal(true);
       }
-      
+    } catch (error) {
+      setPersonNotFound(true);
+      setShowNotFoundModal(true);
+    } finally {
       setSearchLoading(false);
-    }, 1500);
+    }
   };
 
   // Start camera for face capture
@@ -184,7 +169,7 @@ const VoterRegistrationPage: React.FC = () => {
   //         facingMode: 'user'
   //       } 
   //     });
-      
+
   //     if (videoRef.current) {
   //       videoRef.current.srcObject = stream;
   //       videoRef.current.onloadedmetadata = () => {
@@ -198,7 +183,7 @@ const VoterRegistrationPage: React.FC = () => {
   //   }
   //   console.log('VideoRef:', videoRef.current);
   //   console.log('Stream:', stream);
-    
+
   // };
   const startCamera = () => {
     setCameraActive(true);
@@ -220,15 +205,15 @@ const VoterRegistrationPage: React.FC = () => {
       const canvas = canvasRef.current;
       const video = videoRef.current;
       const context = canvas.getContext('2d');
-      
+
       if (context) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0);
-        
+
         const imageData = canvas.toDataURL('image/jpeg', 0.8);
         setCapturedImage(imageData);
-        
+
         stopCamera();
         setRegistrationStep('verify');
       }
@@ -245,7 +230,7 @@ const VoterRegistrationPage: React.FC = () => {
   // Save voter registration
   const saveVoterRegistration = async () => {
     if (!foundPerson || !capturedImage) return;
-    
+
     // Simulate API call to save voter
     setTimeout(() => {
       // Generate mock QR code
@@ -258,37 +243,89 @@ const VoterRegistrationPage: React.FC = () => {
           <text x="100" y="105" text-anchor="middle" font-family="Arial" font-size="12" fill="black">QR: ${foundPerson.ci}</text>
         </svg>
       `)}`);
-      
+
       setRegistrationStep('success');
       setShowSuccessModal(true);
     }, 2000);
   };
 
   //Handle new person registration
-  const handleRegisterNewPerson = () => {
-    // Validate required fields
-    const required = ['nombres', 'apellido_paterno', 'apellido_materno', 'fecha_nacimiento', 'email'];
+  const handleRegisterNewPerson = async () => {
+    // Validar campos obligatorios según tipo
+    const required = ['nombres', 'apellido_paterno', 'apellido_materno', 'fecha_nacimiento', 'email', 'genero', 'tipo'];
+    if (newPersonData.tipo === 'Estudiante') {
+      required.push('matricula', 'fecha_ingreso', 'semestre_actual');
+    }
+    if (newPersonData.tipo === 'Docente') {
+      required.push('categoria_docente', 'grado_academico', 'fecha_ingreso');
+    }
     const missing = required.filter(field => !newPersonData[field as keyof Person]);
-    
     if (missing.length > 0) {
       handleShowErrorModal('Por favor complete todos los campos obligatorios');
       return;
     }
-    
-    // Simulate API call
-    setTimeout(() => {
-      const newPerson: Person = {
-        ci: searchCI,
-        ...newPersonData as Person
-      };
-      
-      setFoundPerson(newPerson);
+
+    try {
+      let createdPerson: Person | null = null;
+
+      if (newPersonData.tipo === 'Estudiante') {
+        const payload = {
+          ci: searchCI,
+          nombre: newPersonData.nombres,
+          apellido_paterno: newPersonData.apellido_paterno,
+          apellido_materno: newPersonData.apellido_materno,
+          fechaNacimiento: newPersonData.fecha_nacimiento,
+          email: newPersonData.email,
+          telefono: newPersonData.telefono,
+          direccion: newPersonData.direccion || '',
+          genero: newPersonData.genero,
+          fechaAlta: new Date().toISOString().split('T')[0],
+          matricula: newPersonData.matricula,
+          fechaIngreso: newPersonData.fecha_ingreso,
+          semestreActual: Number(newPersonData.semestre_actual),
+          estado: 'Habilitado', // o el valor por defecto que uses
+          idCarrera: null // ajusta si tienes selección de carrera
+        };
+        await electoralStore.createStudent(payload);
+        createdPerson = {
+          ...newPersonData as Person,
+          ci: searchCI
+        };
+      } else if (newPersonData.tipo === 'Docente') {
+        const payload = {
+          ci: searchCI,
+          nombre: newPersonData.nombres,
+          apellido_paterno: newPersonData.apellido_paterno,
+          apellido_materno: newPersonData.apellido_materno,
+          fechaNacimiento: newPersonData.fecha_nacimiento,
+          email: newPersonData.email,
+          telefono: newPersonData.telefono,
+          direccion: newPersonData.direccion || '',
+          genero: newPersonData.genero,
+          fechaAlta: new Date().toISOString().split('T')[0],
+          categoriaDocente: newPersonData.categoria_docente,
+          gradoAcademico: newPersonData.grado_academico,
+          fechaIngreso: newPersonData.fecha_ingreso,
+          activo: true, // o el valor por defecto que uses
+          idCarrera: null // ajusta si tienes selección de carrera
+        };
+        await electoralStore.createTeacher(payload);
+        createdPerson = {
+          ...newPersonData as Person,
+          ci: searchCI
+        };
+      }
+
+      setFoundPerson(createdPerson);
       setShowRegisterForm(false);
       setPersonNotFound(false);
       setShowNotFoundModal(false);
       setRegistrationStep('capture');
-      setShowSuccessModal(true);
-    }, 1000);
+      // setShowSuccessModal(true); // Solo al final del flujo
+
+    } catch (error) {
+      handleShowErrorModal('Error al registrar la persona. Intente nuevamente.');
+    }
   };
 
   // Download QR code
@@ -328,33 +365,33 @@ const VoterRegistrationPage: React.FC = () => {
               </div>
               <span className="ml-2 text-sm font-medium">Búsqueda</span>
             </div>
-            
+
             <div className="w-16 h-1 bg-gray-200">
               <div className={`h-full ${registrationStep === 'capture' || registrationStep === 'verify' || registrationStep === 'success' ? 'bg-primary' : ''}`}></div>
             </div>
-            
+
             <div className={`flex items-center ${registrationStep === 'capture' ? 'text-primary' : registrationStep === 'verify' || registrationStep === 'success' ? 'text-green-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${registrationStep === 'capture' ? 'bg-primary text-white' : registrationStep === 'verify' || registrationStep === 'success' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
                 2
               </div>
               <span className="ml-2 text-sm font-medium">Captura</span>
             </div>
-            
+
             <div className="w-16 h-1 bg-gray-200">
               <div className={`h-full ${registrationStep === 'verify' || registrationStep === 'success' ? 'bg-primary' : ''}`}></div>
             </div>
-            
+
             <div className={`flex items-center ${registrationStep === 'verify' ? 'text-primary' : registrationStep === 'success' ? 'text-green-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${registrationStep === 'verify' ? 'bg-primary text-white' : registrationStep === 'success' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
                 3
               </div>
               <span className="ml-2 text-sm font-medium">Verificación</span>
             </div>
-            
+
             <div className="w-16 h-1 bg-gray-200">
               <div className={`h-full ${registrationStep === 'success' ? 'bg-primary' : ''}`}></div>
             </div>
-            
+
             <div className={`flex items-center ${registrationStep === 'success' ? 'text-green-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${registrationStep === 'success' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
                 4
@@ -372,7 +409,7 @@ const VoterRegistrationPage: React.FC = () => {
                 <Search className="h-5 w-5 mr-2 text-primary" />
                 Búsqueda por Cédula de Identidad
               </h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
                   <input
@@ -409,7 +446,7 @@ const VoterRegistrationPage: React.FC = () => {
                     <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
                     <span className="text-green-800 font-medium">Persona encontrada</span>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-gray-600">Nombres completos:</p>
@@ -427,7 +464,7 @@ const VoterRegistrationPage: React.FC = () => {
                       <p className="text-sm text-gray-600">Teléfono:</p>
                       <p className="font-medium">{foundPerson.telefono}</p>
                     </div>
-                    
+
                     {/* Student specific info */}
                     {foundPerson.tipo === 'Estudiante' && (
                       <>
@@ -441,7 +478,7 @@ const VoterRegistrationPage: React.FC = () => {
                         </div>
                       </>
                     )}
-                    
+
                     {/* Teacher specific info */}
                     {foundPerson.tipo === 'Docente' && (
                       <>
@@ -456,7 +493,7 @@ const VoterRegistrationPage: React.FC = () => {
                       </>
                     )}
                   </div>
-                  
+
                   <button
                     onClick={() => setRegistrationStep('capture')}
                     className="btn btn-primary mt-4"
@@ -475,7 +512,7 @@ const VoterRegistrationPage: React.FC = () => {
                   <UserPlus className="h-5 w-5 mr-2 text-primary" />
                   Registrar Nueva Persona
                 </h2>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -488,7 +525,7 @@ const VoterRegistrationPage: React.FC = () => {
                       readOnly
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Tipo *
@@ -496,13 +533,13 @@ const VoterRegistrationPage: React.FC = () => {
                     <select
                       className="form-input"
                       value={newPersonData.tipo}
-                      onChange={(e) => setNewPersonData({...newPersonData, tipo: e.target.value as 'Estudiante' | 'Docente'})}
+                      onChange={(e) => setNewPersonData({ ...newPersonData, tipo: e.target.value as 'Estudiante' | 'Docente' })}
                     >
                       <option value="Estudiante">Estudiante</option>
                       <option value="Docente">Docente</option>
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Nombres *
@@ -511,10 +548,10 @@ const VoterRegistrationPage: React.FC = () => {
                       type="text"
                       className="form-input"
                       value={newPersonData.nombres}
-                      onChange={(e) => setNewPersonData({...newPersonData, nombres: e.target.value})}
+                      onChange={(e) => setNewPersonData({ ...newPersonData, nombres: e.target.value })}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Apellido Paterno *
@@ -523,10 +560,10 @@ const VoterRegistrationPage: React.FC = () => {
                       type="text"
                       className="form-input"
                       value={newPersonData.apellido_paterno}
-                      onChange={(e) => setNewPersonData({...newPersonData, apellido_paterno: e.target.value})}
+                      onChange={(e) => setNewPersonData({ ...newPersonData, apellido_paterno: e.target.value })}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Apellido Materno *
@@ -535,10 +572,10 @@ const VoterRegistrationPage: React.FC = () => {
                       type="text"
                       className="form-input"
                       value={newPersonData.apellido_materno}
-                      onChange={(e) => setNewPersonData({...newPersonData, apellido_materno: e.target.value})}
+                      onChange={(e) => setNewPersonData({ ...newPersonData, apellido_materno: e.target.value })}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Fecha de Nacimiento *
@@ -547,10 +584,10 @@ const VoterRegistrationPage: React.FC = () => {
                       type="date"
                       className="form-input"
                       value={newPersonData.fecha_nacimiento}
-                      onChange={(e) => setNewPersonData({...newPersonData, fecha_nacimiento: e.target.value})}
+                      onChange={(e) => setNewPersonData({ ...newPersonData, fecha_nacimiento: e.target.value })}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Email *
@@ -559,10 +596,10 @@ const VoterRegistrationPage: React.FC = () => {
                       type="email"
                       className="form-input"
                       value={newPersonData.email}
-                      onChange={(e) => setNewPersonData({...newPersonData, email: e.target.value})}
+                      onChange={(e) => setNewPersonData({ ...newPersonData, email: e.target.value })}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Teléfono
@@ -571,10 +608,10 @@ const VoterRegistrationPage: React.FC = () => {
                       type="tel"
                       className="form-input"
                       value={newPersonData.telefono}
-                      onChange={(e) => setNewPersonData({...newPersonData, telefono: e.target.value})}
+                      onChange={(e) => setNewPersonData({ ...newPersonData, telefono: e.target.value })}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Género *
@@ -582,14 +619,14 @@ const VoterRegistrationPage: React.FC = () => {
                     <select
                       className="form-input"
                       value={newPersonData.genero}
-                      onChange={(e) => setNewPersonData({...newPersonData, genero: e.target.value as 'Masculino' | 'Femenino' | 'Otro'})}
+                      onChange={(e) => setNewPersonData({ ...newPersonData, genero: e.target.value as 'Masculino' | 'Femenino' | 'Otro' })}
                     >
                       <option value="Masculino">Masculino</option>
                       <option value="Femenino">Femenino</option>
                       <option value="Otro">Otro</option>
                     </select>
                   </div>
-                  
+
                   {/* Student specific fields */}
                   {newPersonData.tipo === 'Estudiante' && (
                     <>
@@ -601,11 +638,11 @@ const VoterRegistrationPage: React.FC = () => {
                           type="text"
                           className="form-input"
                           value={newPersonData.matricula}
-                          onChange={(e) => setNewPersonData({...newPersonData, matricula: e.target.value})}
+                          onChange={(e) => setNewPersonData({ ...newPersonData, matricula: e.target.value })}
                           placeholder="Ej: 2024-0001"
                         />
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Fecha de Ingreso *
@@ -614,10 +651,10 @@ const VoterRegistrationPage: React.FC = () => {
                           type="date"
                           className="form-input"
                           value={newPersonData.fecha_ingreso}
-                          onChange={(e) => setNewPersonData({...newPersonData, fecha_ingreso: e.target.value})}
+                          onChange={(e) => setNewPersonData({ ...newPersonData, fecha_ingreso: e.target.value })}
                         />
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Semestre Actual *
@@ -626,14 +663,14 @@ const VoterRegistrationPage: React.FC = () => {
                           type="number"
                           className="form-input"
                           value={newPersonData.semestre_actual}
-                          onChange={(e) => setNewPersonData({...newPersonData, semestre_actual: parseInt(e.target.value)})}
+                          onChange={(e) => setNewPersonData({ ...newPersonData, semestre_actual: parseInt(e.target.value) })}
                           min="1"
                           max="20"
                         />
                       </div>
                     </>
                   )}
-                  
+
                   {/* Teacher specific fields */}
                   {newPersonData.tipo === 'Docente' && (
                     <>
@@ -644,7 +681,7 @@ const VoterRegistrationPage: React.FC = () => {
                         <select
                           className="form-input"
                           value={newPersonData.categoria_docente}
-                          onChange={(e) => setNewPersonData({...newPersonData, categoria_docente: e.target.value})}
+                          onChange={(e) => setNewPersonData({ ...newPersonData, categoria_docente: e.target.value })}
                         >
                           <option value="">Seleccionar categoría</option>
                           <option value="Titular">Titular</option>
@@ -653,7 +690,7 @@ const VoterRegistrationPage: React.FC = () => {
                           <option value="Invitado">Invitado</option>
                         </select>
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Grado Académico *
@@ -661,7 +698,7 @@ const VoterRegistrationPage: React.FC = () => {
                         <select
                           className="form-input"
                           value={newPersonData.grado_academico}
-                          onChange={(e) => setNewPersonData({...newPersonData, grado_academico: e.target.value})}
+                          onChange={(e) => setNewPersonData({ ...newPersonData, grado_academico: e.target.value })}
                         >
                           <option value="">Seleccionar grado</option>
                           <option value="Licenciatura">Licenciatura</option>
@@ -670,7 +707,7 @@ const VoterRegistrationPage: React.FC = () => {
                           <option value="Doctorado">Doctorado</option>
                         </select>
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Fecha de Ingreso *
@@ -679,12 +716,12 @@ const VoterRegistrationPage: React.FC = () => {
                           type="date"
                           className="form-input"
                           value={newPersonData.fecha_ingreso}
-                          onChange={(e) => setNewPersonData({...newPersonData, fecha_ingreso: e.target.value})}
+                          onChange={(e) => setNewPersonData({ ...newPersonData, fecha_ingreso: e.target.value })}
                         />
                       </div>
                     </>
                   )}
-                  
+
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Dirección
@@ -693,11 +730,11 @@ const VoterRegistrationPage: React.FC = () => {
                       className="form-input"
                       rows={2}
                       value={newPersonData.direccion}
-                      onChange={(e) => setNewPersonData({...newPersonData, direccion: e.target.value})}
+                      onChange={(e) => setNewPersonData({ ...newPersonData, direccion: e.target.value })}
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex justify-end space-x-4 mt-6">
                   <button
                     onClick={() => setShowRegisterForm(false)}
@@ -725,7 +762,7 @@ const VoterRegistrationPage: React.FC = () => {
               <Camera className="h-5 w-5 mr-2 text-primary" />
               Registro Facial
             </h2>
-            
+
             <div className="text-center">
               {!cameraActive && !capturedImage && (
                 <div className="space-y-4">
@@ -744,7 +781,7 @@ const VoterRegistrationPage: React.FC = () => {
                   </button>
                 </div>
               )}
-              
+
               {cameraActive && (
                 <div className="space-y-4">
                   <div className="relative inline-block">
@@ -778,7 +815,7 @@ const VoterRegistrationPage: React.FC = () => {
                   </div>
                 </div>
               )}
-              
+
               <canvas ref={canvasRef} style={{ display: 'none' }} />
             </div>
           </div>
@@ -791,7 +828,7 @@ const VoterRegistrationPage: React.FC = () => {
               <CheckCircle className="h-5 w-5 mr-2 text-primary" />
               Verificación de Datos
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="font-medium mb-4">Datos Personales</h3>
@@ -812,7 +849,7 @@ const VoterRegistrationPage: React.FC = () => {
                     <span className="text-sm text-gray-600">Email:</span>
                     <span className="ml-2 font-medium">{foundPerson.email}</span>
                   </div>
-                  
+
                   {/* Student specific verification */}
                   {foundPerson.tipo === 'Estudiante' && (
                     <>
@@ -826,7 +863,7 @@ const VoterRegistrationPage: React.FC = () => {
                       </div>
                     </>
                   )}
-                  
+
                   {/* Teacher specific verification */}
                   {foundPerson.tipo === 'Docente' && (
                     <>
@@ -842,7 +879,7 @@ const VoterRegistrationPage: React.FC = () => {
                   )}
                 </div>
               </div>
-              
+
               <div>
                 <h3 className="font-medium mb-4">Foto Capturada</h3>
                 <img
@@ -853,7 +890,7 @@ const VoterRegistrationPage: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             <div className="flex justify-between mt-6">
               <button
                 onClick={retakePhoto}
@@ -881,12 +918,12 @@ const VoterRegistrationPage: React.FC = () => {
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
             </div>
-            
+
             <h2 className="text-2xl font-bold mb-2">¡Registro Exitoso!</h2>
             <p className="text-gray-600 mb-6">
               El votante ha sido registrado correctamente en el sistema
             </p>
-            
+
             <div className="bg-gray-50 p-6 rounded-lg mb-6">
               <h3 className="font-medium mb-4 flex items-center justify-center">
                 <QrCode className="h-5 w-5 mr-2" />
@@ -901,7 +938,7 @@ const VoterRegistrationPage: React.FC = () => {
                 CI: {foundPerson.ci} | {foundPerson.nombres} {foundPerson.apellido_paterno}
               </p>
             </div>
-            
+
             <div className="flex justify-center space-x-4">
               <button
                 onClick={downloadQR}
@@ -933,7 +970,7 @@ const VoterRegistrationPage: React.FC = () => {
                   <X className="h-6 w-6" />
                 </button>
               </div>
-              
+
               <div className="mb-6">
                 <div className="flex items-center mb-3">
                   <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
@@ -946,7 +983,7 @@ const VoterRegistrationPage: React.FC = () => {
                   ¿Desea registrar una nueva persona con este CI?
                 </p>
               </div>
-              
+
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
@@ -955,7 +992,7 @@ const VoterRegistrationPage: React.FC = () => {
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setShowNotFoundModal(false);
                     setShowRegisterForm(true);
@@ -983,7 +1020,7 @@ const VoterRegistrationPage: React.FC = () => {
                   <X className="h-6 w-6" />
                 </button>
               </div>
-              
+
               <div className="mb-6 text-center">
                 <div className="flex justify-center mb-4">
                   <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
@@ -991,15 +1028,15 @@ const VoterRegistrationPage: React.FC = () => {
                   </div>
                 </div>
                 <p className="text-gray-700">
-                  {registrationStep === 'success' 
+                  {registrationStep === 'success'
                     ? 'Votante registrado exitosamente'
                     : 'Persona registrada exitosamente. Ahora proceda con el registro facial.'
                   }
                 </p>
               </div>
-              
+
               <div className="flex justify-center">
-                <button 
+                <button
                   onClick={() => setShowSuccessModal(false)}
                   className="btn btn-primary"
                 >
@@ -1023,7 +1060,7 @@ const VoterRegistrationPage: React.FC = () => {
                   <X className="h-6 w-6" />
                 </button>
               </div>
-              
+
               <div className="mb-6">
                 <div className="flex items-center mb-3">
                   <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
@@ -1033,9 +1070,9 @@ const VoterRegistrationPage: React.FC = () => {
                   {errorMessage}
                 </p>
               </div>
-              
+
               <div className="flex justify-center">
-                <button 
+                <button
                   onClick={() => setShowErrorModal(false)}
                   className="btn btn-primary"
                 >
