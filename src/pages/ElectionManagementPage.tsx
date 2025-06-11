@@ -4,6 +4,7 @@ import {
   Settings, CheckCircle, Clock, XCircle, Filter, Download,
   UserCheck, Building, X // 👈 este es el que falta
 } from 'lucide-react';
+import { ElectionSelector } from '../components/ElectionSelector';
 
 // Types
 interface Election {
@@ -237,40 +238,7 @@ const ElectionManagementPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Current Election Selector */}
-        <div className="card p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">Elección Actual</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Seleccionar Elección Activa
-              </label>
-              <select
-                className="form-input"
-                value={selectedElection}
-                onChange={(e) => setSelectedElection(Number(e.target.value))}
-              >
-                {elections.map((election) => (
-                  <option key={election.id} value={election.id}>
-                    {election.nombre} - {election.estado}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {currentElection && (
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-medium text-blue-900">{currentElection.nombre}</h4>
-                <p className="text-sm text-blue-700 mt-1">{currentElection.descripcion}</p>
-                <div className="flex items-center mt-2">
-                  <Calendar className="h-4 w-4 text-blue-600 mr-1" />
-                  <span className="text-sm text-blue-700">
-                    {currentElection.fecha_inicio} - {currentElection.fecha_fin}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+         <ElectionSelector />
 
         {/* Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

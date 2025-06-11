@@ -1,7 +1,7 @@
 import { Faculty, Career } from '../types';
 
 // Cambia la URL base según tu entorno
-const API_BASE = 'http://localhost:8082/api';
+const API_BASE = 'http://localhost:9090/api';
 
 export const getFaculties = async (): Promise<Faculty[]> => {
   const res = await fetch(`${API_BASE}/facultades`);

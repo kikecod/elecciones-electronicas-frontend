@@ -230,3 +230,16 @@ export interface ApiError {
   code?: string;
   details?: any;
 }
+
+export interface Votante {
+  idVotante: number;
+  idPersona: number;
+  idEleccion: number;
+  idRecinto: number;
+  qrUuid: string;
+  hashHuella: string | null;
+  hashFirma: string | null;
+  hashRostro: string;
+  habilitado: boolean;
+  fechaHabilitacion: string;
+}
