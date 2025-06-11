@@ -1,100 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Edit, Trash2, UserCheck, Download, Filter, Eye, X, UserPlus } from 'lucide-react';
-
-// Mock data for electoral roll
-const mockVoters = [
-  { 
-    id: 1, 
-    ci: '12345678',
-    name: 'Juan Carlos Pérez González', 
-    studentId: '2020-0124', 
-    faculty: 'Ingeniería', 
-    career: 'Sistemas', 
-    type: 'Estudiante', 
-    status: 'Habilitado',
-    email: 'juan.perez@universidad.edu',
-    phone: '+591 70123456',
-    gender: 'Masculino',
-    birthDate: '1995-03-15',
-    // Student specific fields
-    matricula: '2020-0124',
-    fecha_ingreso: '2020-02-15',
-    semestre_actual: 8
-  },
-  { 
-    id: 2, 
-    ci: '87654321',
-    name: 'María Elena Rodríguez Mamani', 
-    studentId: '2019-0453', 
-    faculty: 'Ciencias Económicas', 
-    career: 'Administración', 
-    type: 'Estudiante', 
-    status: 'Habilitado',
-    email: 'maria.rodriguez@universidad.edu',
-    phone: '+591 71234567',
-    gender: 'Femenino',
-    birthDate: '1997-07-22',
-    // Student specific fields
-    matricula: '2019-0453',
-    fecha_ingreso: '2019-02-10',
-    semestre_actual: 10
-  },
-  { 
-    id: 3, 
-    ci: '11223344',
-    name: 'Lucia Fernández Torres', 
-    studentId: '2021-0078', 
-    faculty: 'Medicina', 
-    career: 'Medicina General', 
-    type: 'Estudiante', 
-    status: 'Habilitado',
-    email: 'lucia.fernandez@universidad.edu',
-    phone: '+591 72345678',
-    gender: 'Femenino',
-    birthDate: '1999-11-10',
-    // Student specific fields
-    matricula: '2021-0078',
-    fecha_ingreso: '2021-02-20',
-    semestre_actual: 6
-  },
-  { 
-    id: 4, 
-    ci: '55667788',
-    name: 'Dr. Jorge Luis Pérez Morales', 
-    studentId: 'DOC-0089', 
-    faculty: 'Ingeniería', 
-    career: 'Sistemas', 
-    type: 'Docente', 
-    status: 'Habilitado',
-    email: 'jorge.perez@universidad.edu',
-    phone: '+591 73456789',
-    gender: 'Masculino',
-    birthDate: '1975-04-18',
-    // Teacher specific fields
-    categoria_docente: 'Titular',
-    grado_academico: 'PhD',
-    fecha_ingreso: '2005-03-01'
-  },
-  { 
-    id: 5, 
-    ci: '99887766',
-    name: 'Marta González Quispe', 
-    studentId: '2018-0214', 
-    faculty: 'Humanidades', 
-    career: 'Psicología', 
-    type: 'Estudiante', 
-    status: 'Pendiente',
-    email: 'marta.gonzalez@universidad.edu',
-    phone: '+591 74567890',
-    gender: 'Femenino',
-    birthDate: '1996-09-05',
-    // Student specific fields
-    matricula: '2018-0214',
-    fecha_ingreso: '2018-02-05',
-    semestre_actual: 12
-  },
-];
+import * as electoralStore from '../services/ElectoralRollStore';
+import { Faculty, Career } from '../types';
+import * as academicService from '../services/AcademicAdminStore';
 
 const ElectoralRollPage: React.FC = () => {
   const navigate = useNavigate();
@@ -107,24 +16,96 @@ const ElectoralRollPage: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [editingVoter, setEditingVoter] = useState<any>(null);
   const [voterToDelete, setVoterToDelete] = useState<any>(null);
-  
+  const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [voters, setVoters] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const selectedFacultyObj = editingVoter
+    ? faculties.find(f => f.nombre === editingVoter.faculty)
+    : null;
+  const availableCareers = selectedFacultyObj ? selectedFacultyObj.carreras : [];
+
+  useEffect(() => {
+    // Reemplaza por tu servicio real
+    academicService.getFaculties()
+      .then(setFaculties)
+      .catch(() => setFaculties([]));
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const students = await electoralStore.getStudents();
+        const teachers = await electoralStore.getTeachers();
+
+        // Unifica el formato para la tabla
+        const formattedStudents = students.map((s: any) => ({
+          id: s.id,
+          ci: s.ci,
+          name: `${s.nombre} ${s.apellido_paterno} ${s.apellido_materno}`,
+          studentId: s.matricula,
+          faculty: s.nombreFacultad,
+          career: s.nombreCarrera,
+          type: 'Estudiante',
+          status: s.estado,
+          email: s.email,
+          phone: s.telefono,
+          gender: s.genero,
+          direccion: s.direccion,
+          birthDate: s.fechaNacimiento,
+          matricula: s.matricula,
+          fecha_ingreso: s.fechaIngreso,
+          semestre_actual: s.semestreActual
+        }));
+
+        const formattedTeachers = teachers.map((t: any) => ({
+          id: t.id,
+          ci: t.ci,
+          name: `${t.nombre} ${t.apellido_paterno} ${t.apellido_materno}`,
+          studentId: t.codigoDocente,
+          faculty: t.nombreFacultad,
+          career: t.nombreCarrera,
+          type: 'Docente',
+          status: t.activo,
+          email: t.email,
+          phone: t.telefono,
+          direccion: t.direccion,
+          gender: t.genero,
+          birthDate: t.fechaNacimiento,
+          categoria_docente: t.categoriaDocente,
+          grado_academico: t.gradoAcademico,
+          fecha_ingreso: t.fechaIngreso
+        }));
+
+        setVoters([...formattedStudents, ...formattedTeachers]);
+      } catch {
+        setVoters([]);
+      }
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
   // Export modal state
   const [exportType, setExportType] = useState('general');
   const [exportFormat, setExportFormat] = useState('csv');
   const [selectedCareer, setSelectedCareer] = useState('');
   const [selectedFacultyExport, setSelectedFacultyExport] = useState('');
-  
+
   // Filter voters based on search term and filters
-  const filteredVoters = mockVoters.filter(voter => {
-    const matchesSearch = 
-      voter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      voter.ci.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      voter.studentId.toLowerCase().includes(searchTerm.toLowerCase());
-    
+  const filteredVoters = voters.filter(voter => {
+    const matchesSearch =
+      (voter.name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+      (voter.ci?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+      (voter.studentId?.toLowerCase() ?? '').includes(searchTerm.toLowerCase());
+
     const matchesFaculty = selectedFaculty === '' || voter.faculty === selectedFaculty;
     const matchesType = selectedType === '' || voter.type === selectedType;
     const matchesStatus = selectedStatus === '' || voter.status === selectedStatus;
-    
+
     return matchesSearch && matchesFaculty && matchesType && matchesStatus;
   });
 
@@ -141,41 +122,193 @@ const ElectoralRollPage: React.FC = () => {
   };
 
   // Confirm delete
-  const confirmDelete = () => {
-    // Here you would make the API call to delete
-    console.log('Deleting voter:', voterToDelete);
-    setShowDeleteModal(false);
-    setVoterToDelete(null);
-    // Show success message or update list
+  const confirmDelete = async () => {
+    try {
+      if (voterToDelete.type === 'Estudiante') {
+        await electoralStore.deleteStudent(voterToDelete.id);
+      } else if (voterToDelete.type === 'Docente') {
+        await electoralStore.deleteTeacher(voterToDelete.id);
+      }
+      // Recarga la lista
+      const students = await electoralStore.getStudents();
+      const teachers = await electoralStore.getTeachers();
+
+      const formattedStudents = students.map((s: any) => ({
+        id: s.id,
+        ci: s.ci,
+        name: `${s.nombre} ${s.apellido_paterno} ${s.apellido_materno}`,
+        studentId: s.matricula,
+        faculty: s.nombreFacultad,
+        career: s.nombreCarrera,
+        type: 'Estudiante',
+        status: s.estado,
+        email: s.email,
+        phone: s.telefono,
+        gender: s.genero,
+        birthDate: s.fechaNacimiento,
+        matricula: s.matricula,
+        fecha_ingreso: s.fechaIngreso,
+        semestre_actual: s.semestreActual
+      }));
+
+      const formattedTeachers = teachers.map((t: any) => ({
+        id: t.id,
+        ci: t.ci,
+        name: `${t.nombre} ${t.apellido_paterno} ${t.apellido_materno}`,
+        studentId: t.codigoDocente,
+        faculty: t.nombreFacultad,
+        career: t.nombreCarrera,
+        type: 'Docente',
+        status: t.estado,
+        email: t.email,
+        phone: t.telefono,
+        gender: t.genero,
+        birthDate: t.fechaNacimiento,
+        categoria_docente: t.categoriaDocente,
+        grado_academico: t.gradoAcademico,
+        fecha_ingreso: t.fechaIngreso
+      }));
+
+      setVoters([...formattedStudents, ...formattedTeachers]);
+      setShowDeleteModal(false);
+      setVoterToDelete(null);
+    } catch {
+      alert('Error al eliminar el votante');
+    }
   };
 
   // Handle save edit
-  const handleSaveEdit = () => {
-    // Here you would make the API call to update
-    console.log('Updating voter:', editingVoter);
-    setShowEditModal(false);
-    setEditingVoter(null);
-    // Show success message
+  const handleSaveEdit = async () => {
+    try {
+      if (editingVoter.type === 'Estudiante') {
+        // Divide el nombre completo en partes (ajusta si tu formato es diferente)
+        const [nombre = '', apellido_paterno = '', apellido_materno = ''] = (editingVoter.name || '').split(' ');
+
+        // Busca el idCarrera según el nombre de la carrera seleccionada
+        const selectedCareerObj = availableCareers.find(c => c.nombre === editingVoter.career);
+
+
+        const payload = {
+          ci: editingVoter.ci,
+          nombre,
+          apellido_paterno,
+          apellido_materno,
+          fechaNacimiento: editingVoter.birthDate,
+          email: editingVoter.email,
+          telefono: editingVoter.phone,
+          direccion: editingVoter.direccion || '',
+          genero: editingVoter.gender || '',
+          fechaAlta: editingVoter.fecha_alta || new Date().toISOString().split('T')[0],
+          matricula: editingVoter.matricula,
+          fechaIngreso: editingVoter.fecha_ingreso,
+          semestreActual: Number(editingVoter.semestre_actual),
+          estado: editingVoter.status,
+          idCarrera: selectedCareerObj ? selectedCareerObj.id : null
+        };
+
+        console.log('Payload a enviar:', payload);
+        console.dir(payload);
+        console.log(JSON.stringify(payload, null, 2));
+
+        await electoralStore.updateStudent(editingVoter.id, payload);
+      } else if (editingVoter.type === 'Docente') {
+        // Divide el nombre completo en partes (ajusta si tu formato es diferente)
+        const [nombre = '', apellido_paterno = '', apellido_materno = ''] = (editingVoter.name || '').split(' ');
+
+        // Busca el idCarrera según el nombre de la carrera seleccionada
+        const selectedCareerObj = availableCareers.find(c => c.nombre === editingVoter.career);
+
+        const payload = {
+          ci: editingVoter.ci,
+          nombre,
+          apellido_paterno,
+          apellido_materno,
+          fechaNacimiento: editingVoter.birthDate,
+          email: editingVoter.email,
+          telefono: editingVoter.phone,
+          direccion: editingVoter.direccion || '',
+          genero: editingVoter.gender || '',
+          fechaAlta: editingVoter.fecha_alta || new Date().toISOString().split('T')[0],
+          categoriaDocente: editingVoter.categoria_docente || '',
+          gradoAcademico: editingVoter.grado_academico || '',
+          fechaIngreso: editingVoter.fecha_ingreso,
+          activo: editingVoter.status, // O ajusta según tu lógica de estado
+          idCarrera: selectedCareerObj ? selectedCareerObj.id : null
+        };
+
+        console.log('Payload a enviar:', payload);
+        console.dir(payload);
+        console.log(JSON.stringify(payload, null, 2));
+
+        await electoralStore.updateTeacher(editingVoter.id, payload);
+      }
+
+      // Recarga la lista (igual que antes)
+      const students = await electoralStore.getStudents();
+      const teachers = await electoralStore.getTeachers();
+
+      const formattedStudents = students.map((s: any) => ({
+        id: s.id,
+        ci: s.ci,
+        name: `${s.nombre} ${s.apellido_paterno} ${s.apellido_materno}`,
+        studentId: s.matricula,
+        faculty: s.nombreFacultad,
+        career: s.nombreCarrera,
+        type: 'Estudiante',
+        status: s.estado,
+        email: s.email,
+        phone: s.telefono,
+        gender: s.genero,
+        birthDate: s.fechaNacimiento,
+        matricula: s.matricula,
+        fecha_ingreso: s.fechaIngreso,
+        semestre_actual: s.semestreActual
+      }));
+
+      const formattedTeachers = teachers.map((t: any) => ({
+        id: t.id,
+        ci: t.ci,
+        name: `${t.nombre} ${t.apellido_paterno} ${t.apellido_materno}`,
+        studentId: t.codigoDocente,
+        faculty: t.nombreFacultad,
+        career: t.nombreCarrera,
+        type: 'Docente',
+        status: t.activo, // O ajusta según tu backend
+        email: t.email,
+        phone: t.telefono,
+        gender: t.genero,
+        birthDate: t.fechaNacimiento,
+        categoria_docente: t.categoriaDocente,
+        grado_academico: t.gradoAcademico,
+        fecha_ingreso: t.fechaIngreso
+      }));
+
+      setVoters([...formattedStudents, ...formattedTeachers]);
+      setShowEditModal(false);
+      setEditingVoter(null);
+    } catch {
+      alert('Error al actualizar el votante');
+    }
   };
 
   // Handle export
   const handleExport = () => {
     let exportData = '';
     let filename = '';
-    
+
     // Filter data based on export type
-    let dataToExport = mockVoters;
-    
+    let dataToExport = voters;
+
     if (exportType === 'students_by_career') {
-      dataToExport = mockVoters.filter(v => v.type === 'Estudiante' && v.career === selectedCareer);
+      dataToExport = voters.filter(v => v.type === 'Estudiante' && v.career === selectedCareer);
       filename = `Estudiantes_${selectedCareer}_${new Date().toISOString().split('T')[0]}`;
     } else if (exportType === 'teachers_by_faculty') {
-      dataToExport = mockVoters.filter(v => v.type === 'Docente' && v.faculty === selectedFacultyExport);
+      dataToExport = voters.filter(v => v.type === 'Docente' && v.faculty === selectedFacultyExport);
       filename = `Docentes_${selectedFacultyExport}_${new Date().toISOString().split('T')[0]}`;
     } else {
       filename = `Padron_Electoral_${new Date().toISOString().split('T')[0]}`;
     }
-    
+
     if (exportFormat === 'csv') {
       // Generate CSV
       const headers = ['CI', 'Nombre', 'ID/Código', 'Facultad', 'Carrera', 'Tipo', 'Estado', 'Email', 'Teléfono'];
@@ -193,7 +326,7 @@ const ElectoralRollPage: React.FC = () => {
           voter.phone
         ].join(','))
       ].join('\n');
-      
+
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -227,7 +360,7 @@ ${index + 1}. ${voter.name}
 
 Documento generado automáticamente por el Sistema Electoral Universitario.
       `;
-      
+
       const blob = new Blob([pdfContent], { type: 'text/plain' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -236,10 +369,10 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
       link.click();
       window.URL.revokeObjectURL(url);
     }
-    
+
     setShowExportModal(false);
   };
-  
+
   return (
     <div className="fade-in py-8">
       <div className="container-custom">
@@ -251,21 +384,21 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
             </p>
           </div>
           <div className="flex gap-3 mt-4 md:mt-0">
-            <button 
+            <button
               className="btn btn-secondary"
               onClick={() => navigate('/voter-registration')}
             >
               <UserPlus className="h-4 w-4 mr-2" />
               Registrar Persona
             </button>
-            <button 
+            <button
               className="btn btn-primary"
               onClick={() => navigate('/voter-registration')}
             >
               <Plus className="h-4 w-4 mr-2" />
               Nuevo Votante
             </button>
-            <button 
+            <button
               className="btn btn-outline"
               onClick={() => setShowExportModal(true)}
             >
@@ -284,7 +417,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Votantes</p>
-                <p className="text-2xl font-bold text-gray-900">{mockVoters.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{voters.length}</p>
               </div>
             </div>
           </div>
@@ -297,7 +430,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Habilitados</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockVoters.filter(v => v.status === 'Habilitado').length}
+                  {voters.filter(v => v.status === 'Habilitado').length}
                 </p>
               </div>
             </div>
@@ -311,7 +444,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Pendientes</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockVoters.filter(v => v.status === 'Pendiente').length}
+                  {voters.filter(v => v.status === 'Pendiente').length}
                 </p>
               </div>
             </div>
@@ -325,13 +458,13 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Docentes</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockVoters.filter(v => v.type === 'Docente').length}
+                  {voters.filter(v => v.type === 'Docente').length}
                 </p>
               </div>
             </div>
           </div>
         </div>
-        
+
         {/* Search and filters */}
         <div className="card p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -348,20 +481,21 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
               </div>
             </div>
             <div>
-              <select 
+              <select
                 className="form-input"
                 value={selectedFaculty}
                 onChange={(e) => setSelectedFaculty(e.target.value)}
               >
                 <option value="">Todas las Facultades</option>
-                <option value="Ingeniería">Ingeniería</option>
-                <option value="Ciencias Económicas">Ciencias Económicas</option>
-                <option value="Medicina">Medicina</option>
-                <option value="Humanidades">Humanidades</option>
+                {faculties.map(faculty => (
+                  <option key={faculty.id} value={faculty.nombre}>
+                    {faculty.nombre}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
-              <select 
+              <select
                 className="form-input"
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
@@ -372,7 +506,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
               </select>
             </div>
             <div>
-              <select 
+              <select
                 className="form-input"
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
@@ -385,7 +519,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
             </div>
           </div>
         </div>
-        
+
         {/* Voters table */}
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
@@ -437,41 +571,39 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                       {voter.career}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        voter.type === 'Docente' 
-                          ? 'bg-purple-100 text-purple-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${voter.type === 'Docente'
+                        ? 'bg-purple-100 text-purple-800'
+                        : 'bg-blue-100 text-blue-800'
+                        }`}>
                         {voter.type}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        voter.status === 'Habilitado'
-                          ? 'bg-green-100 text-green-800'
-                          : voter.status === 'Pendiente'
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${voter.status === 'Habilitado'
+                        ? 'bg-green-100 text-green-800'
+                        : voter.status === 'Pendiente'
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-red-100 text-red-800'
-                      }`}>
+                        }`}>
                         {voter.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        <button 
+                        <button
                           className="text-indigo-600 hover:text-indigo-900"
                           title="Ver detalles"
                         >
                           <Eye className="h-5 w-5" />
                         </button>
-                        <button 
+                        <button
                           className="text-blue-600 hover:text-blue-900"
                           onClick={() => handleEditVoter(voter)}
                           title="Editar"
                         >
                           <Edit className="h-5 w-5" />
                         </button>
-                        <button 
+                        <button
                           className="text-red-600 hover:text-red-900"
                           onClick={() => handleDeleteVoter(voter)}
                           title="Eliminar"
@@ -485,7 +617,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
               </tbody>
             </table>
           </div>
-          
+
           {filteredVoters.length === 0 && (
             <div className="text-center py-12">
               <UserCheck className="h-16 w-16 mx-auto mb-4 text-gray-300" />
@@ -507,7 +639,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                   <X className="h-6 w-6" />
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -576,7 +708,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                   </select>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3 pt-6">
                 <button
                   type="button"
@@ -585,7 +717,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   onClick={handleExport}
                   className="btn btn-primary"
                   disabled={
@@ -614,7 +746,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                   <X className="h-6 w-6" />
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -627,7 +759,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                     readOnly
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Nombre Completo
@@ -636,10 +768,10 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                     type="text"
                     className="form-input"
                     value={editingVoter.name}
-                    onChange={(e) => setEditingVoter({...editingVoter, name: e.target.value})}
+                    onChange={(e) => setEditingVoter({ ...editingVoter, name: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email
@@ -648,10 +780,10 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                     type="email"
                     className="form-input"
                     value={editingVoter.email}
-                    onChange={(e) => setEditingVoter({...editingVoter, email: e.target.value})}
+                    onChange={(e) => setEditingVoter({ ...editingVoter, email: e.target.value })}
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Teléfono
@@ -660,38 +792,80 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                     type="tel"
                     className="form-input"
                     value={editingVoter.phone}
-                    onChange={(e) => setEditingVoter({...editingVoter, phone: e.target.value})}
+                    onChange={(e) => setEditingVoter({ ...editingVoter, phone: e.target.value })}
                   />
                 </div>
-                
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Género
+                  </label>
+                  <select
+                    className="form-input"
+                    value={editingVoter.gender || ''}
+                    onChange={(e) => setEditingVoter({ ...editingVoter, gender: e.target.value })}
+                  >
+                    <option value="">Seleccionar género</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Dirección
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editingVoter.direccion || ''}
+                    onChange={(e) => setEditingVoter({ ...editingVoter, direccion: e.target.value })}
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Facultad
                   </label>
                   <select
                     className="form-input"
-                    value={editingVoter.faculty}
-                    onChange={(e) => setEditingVoter({...editingVoter, faculty: e.target.value})}
+                    value={editingVoter.faculty || ""}
+                    onChange={(e) =>
+                      setEditingVoter({
+                        ...editingVoter,
+                        faculty: e.target.value,
+                        career: "" // Limpia la carrera al cambiar de facultad
+                      })
+                    }
                   >
-                    <option value="Ingeniería">Ingeniería</option>
-                    <option value="Ciencias Económicas">Ciencias Económicas</option>
-                    <option value="Medicina">Medicina</option>
-                    <option value="Humanidades">Humanidades</option>
+                    <option value="">Seleccionar facultad</option>
+                    {faculties.map(faculty => (
+                      <option key={faculty.id} value={faculty.nombre}>
+                        {faculty.nombre}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Carrera
                   </label>
-                  <input
-                    type="text"
+                  <select
                     className="form-input"
-                    value={editingVoter.career}
-                    onChange={(e) => setEditingVoter({...editingVoter, career: e.target.value})}
-                  />
+                    value={editingVoter.career || ""}
+                    onChange={(e) => setEditingVoter({ ...editingVoter, career: e.target.value })}
+                  >
+                    <option value="">Seleccionar carrera</option>
+                    {availableCareers.map(career => (
+                      <option key={career.id} value={career.nombre}>
+                        {career.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tipo
@@ -699,13 +873,13 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                   <select
                     className="form-input"
                     value={editingVoter.type}
-                    onChange={(e) => setEditingVoter({...editingVoter, type: e.target.value})}
+                    onChange={(e) => setEditingVoter({ ...editingVoter, type: e.target.value })}
                   >
                     <option value="Estudiante">Estudiante</option>
                     <option value="Docente">Docente</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Estado
@@ -713,7 +887,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                   <select
                     className="form-input"
                     value={editingVoter.status}
-                    onChange={(e) => setEditingVoter({...editingVoter, status: e.target.value})}
+                    onChange={(e) => setEditingVoter({ ...editingVoter, status: e.target.value })}
                   >
                     <option value="Habilitado">Habilitado</option>
                     <option value="Pendiente">Pendiente</option>
@@ -732,10 +906,10 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                         type="text"
                         className="form-input"
                         value={editingVoter.matricula || ''}
-                        onChange={(e) => setEditingVoter({...editingVoter, matricula: e.target.value})}
+                        onChange={(e) => setEditingVoter({ ...editingVoter, matricula: e.target.value })}
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Fecha de Ingreso
@@ -744,10 +918,10 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                         type="date"
                         className="form-input"
                         value={editingVoter.fecha_ingreso || ''}
-                        onChange={(e) => setEditingVoter({...editingVoter, fecha_ingreso: e.target.value})}
+                        onChange={(e) => setEditingVoter({ ...editingVoter, fecha_ingreso: e.target.value })}
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Semestre Actual
@@ -756,7 +930,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                         type="number"
                         className="form-input"
                         value={editingVoter.semestre_actual || ''}
-                        onChange={(e) => setEditingVoter({...editingVoter, semestre_actual: parseInt(e.target.value)})}
+                        onChange={(e) => setEditingVoter({ ...editingVoter, semestre_actual: parseInt(e.target.value) })}
                         min="1"
                         max="20"
                       />
@@ -774,7 +948,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                       <select
                         className="form-input"
                         value={editingVoter.categoria_docente || ''}
-                        onChange={(e) => setEditingVoter({...editingVoter, categoria_docente: e.target.value})}
+                        onChange={(e) => setEditingVoter({ ...editingVoter, categoria_docente: e.target.value })}
                       >
                         <option value="">Seleccionar categoría</option>
                         <option value="Titular">Titular</option>
@@ -783,7 +957,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                         <option value="Invitado">Invitado</option>
                       </select>
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Grado Académico
@@ -791,7 +965,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                       <select
                         className="form-input"
                         value={editingVoter.grado_academico || ''}
-                        onChange={(e) => setEditingVoter({...editingVoter, grado_academico: e.target.value})}
+                        onChange={(e) => setEditingVoter({ ...editingVoter, grado_academico: e.target.value })}
                       >
                         <option value="">Seleccionar grado</option>
                         <option value="Licenciatura">Licenciatura</option>
@@ -800,7 +974,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                         <option value="Doctorado">Doctorado</option>
                       </select>
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Fecha de Ingreso
@@ -809,13 +983,13 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                         type="date"
                         className="form-input"
                         value={editingVoter.fecha_ingreso || ''}
-                        onChange={(e) => setEditingVoter({...editingVoter, fecha_ingreso: e.target.value})}
+                        onChange={(e) => setEditingVoter({ ...editingVoter, fecha_ingreso: e.target.value })}
                       />
                     </div>
                   </>
                 )}
               </div>
-              
+
               <div className="flex justify-end gap-3 pt-6">
                 <button
                   type="button"
@@ -824,7 +998,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   onClick={handleSaveEdit}
                   className="btn btn-primary"
                 >
@@ -848,7 +1022,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                   <X className="h-6 w-6" />
                 </button>
               </div>
-              
+
               <div className="mb-6">
                 <p className="text-gray-700 mb-4">
                   ¿Está seguro de que desea eliminar este votante del padrón electoral?
@@ -862,7 +1036,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                   Esta acción no se puede deshacer.
                 </p>
               </div>
-              
+
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
@@ -871,7 +1045,7 @@ Documento generado automáticamente por el Sistema Electoral Universitario.
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   onClick={confirmDelete}
                   className="btn bg-red-600 text-white hover:bg-red-700"
                 >
